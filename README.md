@@ -23,7 +23,7 @@ The project consists of two main components:
    - Data persistence using SQLite
 
 2. **Frontend (React)**
-   - Interactive graph visualization using Cytoscape.js
+   - Interactive graph visualization using Cytoscape.jspip
    - Project management interface
    - Code diff analysis submission
    - Topic learning status tracking
@@ -43,7 +43,7 @@ The project consists of two main components:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/brain-vibe.git
+   git clone https://github.com/IbrahimMohammad-pi/brain-vibe.git
    cd brain-vibe
    ```
 
