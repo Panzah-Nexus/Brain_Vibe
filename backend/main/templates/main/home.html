@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Vibe - Learning Topics Tracker</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: #2a5298;
+        }
+        .card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .endpoints {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .endpoint {
+            background: white;
+            border-left: 4px solid #2a5298;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .endpoint h3 {
+            margin-top: 0;
+            color: #2a5298;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Brain Vibe</h1>
+        <p>Learning Topic Tracking for AI-Generated Code</p>
+    </header>
+    
+    <div class="card">
+        <h2>Project Overview</h2>
+        <p>Brain Vibe monitors AI-generated code changes, identifies new topics to learn, and builds a knowledge graph showing how topics relate to each other.</p>
+        <p>The system tracks your learning progress as you mark topics "learned" and visualizes your knowledge journey.</p>
+    </div>
+    
+    <h2>Available Endpoints</h2>
+    <div class="endpoints">
+        <div class="endpoint">
+            <h3>API Endpoints</h3>
+            <ul>
+                <li><a href="/api/hello/">/api/hello/</a> - Test endpoint</li>
+            </ul>
+        </div>
+        
+        <div class="endpoint">
+            <h3>Authentication</h3>
+            <ul>
+                <li><a href="/admin/">/admin/</a> - Django admin interface</li>
+                <li><a href="/api-auth/">/api-auth/</a> - REST framework authentication</li>
+            </ul>
+        </div>
+    </div>
+    
+    <footer style="margin-top: 40px; text-align: center; color: #777;">
+        <p>Brain Vibe v0.1.0 - Student Hack 25 Project</p>
+    </footer>
+</body>
+</html> 
