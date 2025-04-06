@@ -18,6 +18,11 @@ const apiService = {
     return response.data;
   },
 
+  async createProject(projectData) {
+    const response = await apiClient.post('/projects/', projectData);
+    return response.data;
+  },
+
   async getProject(projectId) {
     const response = await apiClient.get(`/projects/${projectId}/`);
     return response.data;

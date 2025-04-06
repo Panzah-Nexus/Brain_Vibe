@@ -14,6 +14,9 @@ from . import services
 from code_tracker import cursor_integration
 from code_tracker.utils import git_utils
 from .utils import llm_utils
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 class HelloWorldView(APIView):
@@ -53,19 +56,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
+    permission_classes = [AllowAny]  # Temporarily allow any user for testing
     filterset_fields = ['name']
     search_fields = ['name', 'description']
+    lookup_field = 'project_id'  # Use project_id instead of id for lookups
     
     @action(detail=True, methods=['get'])
-    def topics(self, request, pk=None):
+    def topics(self, request, project_id=None):
         """
         Returns all topics associated with a project
         """
-        project = self.get_object()
-        topics = Topic.objects.filter(project=project)
-        serializer = TopicSerializer(topics, many=True)
-        return Response(serializer.data)
+        try:
+            logger.info(f"Fetching topics for project_id: {project_id}")
+            project = self.get_object()
+            logger.info(f"Found project: {project.name} (ID: {project.project_id})")
+            topics = Topic.objects.filter(project=project)
+            logger.info(f"Found {topics.count()} topics for project")
+            serializer = TopicSerializer(topics, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error fetching topics for project {project_id}: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -159,6 +173,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
         
         return Response(result)
 
+    def create(self, request, *args, **kwargs):
+        logger.info(f"Received project creation request with data: {request.data}")
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            logger.info(f"Project created successfully: {serializer.data}")
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            logger.error(f"Error creating project: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 
 class TopicViewSet(viewsets.ModelViewSet):
     """
@@ -187,6 +217,7 @@ class TopicViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
     filterset_fields = ['status', 'project']
     search_fields = ['title', 'description', 'topic_id']
+    lookup_field = 'topic_id'  # Use topic_id for lookups
     
     def get_queryset(self):
         queryset = Topic.objects.all()
@@ -201,7 +232,7 @@ class TopicViewSet(viewsets.ModelViewSet):
         return TopicSerializer
     
     @action(detail=True, methods=['post'])
-    def mark_as_learned(self, request, pk=None):
+    def mark_as_learned(self, request, topic_id=None):
         """
         Mark a topic as learned
         
@@ -210,19 +241,68 @@ class TopicViewSet(viewsets.ModelViewSet):
         - Recording when the topic was learned
         - Potentially suggesting next topics to learn
         """
-        topic = self.get_object()
-        topic.status = 'learned'
-        topic.save()
-        return Response({'status': 'Topic marked as learned'})
+        try:
+            logger.info(f"Marking topic {topic_id} as learned")
+            topic = self.get_object()
+            topic.status = 'learned'
+            topic.save()
+            logger.info(f"Topic {topic_id} marked as learned successfully")
+            return Response({'status': 'Topic marked as learned'})
+        except Exception as e:
+            logger.error(f"Error marking topic {topic_id} as learned: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['get'])
-    def prerequisites(self, request, pk=None):
+    def prerequisites(self, request, topic_id=None):
         """
         Returns all prerequisites for a topic
         """
-        topic = self.get_object()
-        serializer = TopicSerializer(topic.prerequisites.all(), many=True)
-        return Response(serializer.data)
+        try:
+            logger.info(f"Fetching prerequisites for topic {topic_id}")
+            topic = self.get_object()
+            prerequisites = topic.prerequisites.all()
+            logger.info(f"Found {prerequisites.count()} prerequisites for topic {topic_id}")
+            serializer = TopicSerializer(prerequisites, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error fetching prerequisites for topic {topic_id}: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            logger.info(f"Retrieving topic with topic_id: {kwargs.get('topic_id')}")
+            return super().retrieve(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error retrieving topic: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.filter_queryset(self.get_queryset())
+            logger.info(f"Listing topics. Found {queryset.count()} topics.")
+            
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error listing topics: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TopicDependencyViewSet(viewsets.ModelViewSet):
@@ -286,127 +366,140 @@ class AnalyzeDiffView(APIView):
         Returns:
             Response with the analysis results
         """
-        # Get the project from the database
         try:
-            project = Project.objects.get(project_id=project_id)
-        except Project.DoesNotExist:
-            return Response(
-                {"error": f"Project with ID {project_id} not found"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Get the repo path from the request body
-        repo_path = request.data.get('repo_path')
-        if not repo_path:
-            return Response(
-                {"error": "repo_path parameter is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Get the diff from git_utils
-        diff_text = git_utils.get_repo_diffs(repo_path)
-        if not diff_text:
-            return Response(
-                {"warning": "No changes found in repository"}, 
-                status=status.HTTP_200_OK
-            )
-        
-        # Prepare project context
-        project_context = {
-            "project_id": project.project_id,
-            "name": project.name,
-            "existing_topics": list(Topic.objects.filter(project=project).values('topic_id', 'title', 'status'))
-        }
-        
-        # Pass the diff to llm_utils to extract topics
-        new_topics = llm_utils.analyze_diff(diff_text, project_context)
-        if not new_topics:
-            return Response(
-                {"message": "No new topics extracted from the diff"}, 
-                status=status.HTTP_200_OK
-            )
-        
-        # Process and store the topics in the database
-        created_topics = []
-        updated_topics = []
-        
-        for topic_data in new_topics:
-            topic_id = topic_data.get("topic_id")
-            if not topic_id:
-                continue
-            
-            # Check if the topic already exists
+            logger.info(f"Analyzing diff for project_id: {project_id}")
+            # Get the project from the database
             try:
-                # Topic exists, update it if needed
-                topic = Topic.objects.get(topic_id=topic_id)
-                
-                # Only update if the topic has changed
-                if (topic.title != topic_data.get("title") or 
-                    topic.description != topic_data.get("description")):
-                    topic.title = topic_data.get("title", topic.title)
-                    topic.description = topic_data.get("description", topic.description)
-                    topic.save()
-                    updated_topics.append(topic)
-                
-            except Topic.DoesNotExist:
-                # Create a new topic
-                topic = Topic.objects.create(
-                    topic_id=topic_id,
-                    title=topic_data.get("title", ""),
-                    description=topic_data.get("description", ""),
-                    project=project,
-                    status="not_learned"
+                project = Project.objects.get(project_id=project_id)
+                logger.info(f"Found project: {project.name} (ID: {project.project_id})")
+            except Project.DoesNotExist:
+                logger.error(f"Project with ID {project_id} not found")
+                return Response(
+                    {"error": f"Project with ID {project_id} not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
                 )
-                created_topics.append(topic)
             
-            # Process prerequisites
-            if "prerequisites" in topic_data and topic_data["prerequisites"]:
-                for prereq_id in topic_data["prerequisites"]:
-                    # Check if prerequisite exists
-                    try:
-                        prereq = Topic.objects.get(topic_id=prereq_id)
-                    except Topic.DoesNotExist:
-                        # Create the prerequisite topic
-                        prereq = Topic.objects.create(
-                            topic_id=prereq_id,
-                            title=prereq_id.replace('-', ' ').title(),  # Generate a title from the ID
-                            description="",
-                            project=project,
-                            status="not_learned"
-                        )
-                        created_topics.append(prereq)
+            # Get the repo path from the request body
+            repo_path = request.data.get('repo_path')
+            if not repo_path:
+                logger.error("Missing repo_path parameter")
+                return Response(
+                    {"error": "repo_path parameter is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get the diff from git_utils
+            diff_text = git_utils.get_repo_diffs(repo_path)
+            if not diff_text:
+                logger.info(f"No changes found in repository: {repo_path}")
+                return Response(
+                    {"warning": "No changes found in repository"}, 
+                    status=status.HTTP_200_OK
+                )
+            
+            # Prepare project context
+            project_context = {
+                "project_id": project.project_id,
+                "name": project.name,
+                "existing_topics": list(Topic.objects.filter(project=project).values('topic_id', 'title', 'status'))
+            }
+            
+            # Pass the diff to llm_utils to extract topics
+            new_topics = llm_utils.analyze_diff(diff_text, project_context)
+            if not new_topics:
+                return Response(
+                    {"message": "No new topics extracted from the diff"}, 
+                    status=status.HTTP_200_OK
+                )
+            
+            # Process and store the topics in the database
+            created_topics = []
+            updated_topics = []
+            
+            for topic_data in new_topics:
+                topic_id = topic_data.get("topic_id")
+                if not topic_id:
+                    continue
+                
+                # Check if the topic already exists
+                try:
+                    # Topic exists, update it if needed
+                    topic = Topic.objects.get(topic_id=topic_id)
                     
-                    # Add the prerequisite relationship
-                    topic.prerequisites.add(prereq)
+                    # Only update if the topic has changed
+                    if (topic.title != topic_data.get("title") or 
+                        topic.description != topic_data.get("description")):
+                        topic.title = topic_data.get("title", topic.title)
+                        topic.description = topic_data.get("description", topic.description)
+                        topic.save()
+                        updated_topics.append(topic)
+                    
+                except Topic.DoesNotExist:
+                    # Create a new topic
+                    topic = Topic.objects.create(
+                        topic_id=topic_id,
+                        title=topic_data.get("title", ""),
+                        description=topic_data.get("description", ""),
+                        project=project,
+                        status="not_learned"
+                    )
+                    created_topics.append(topic)
+                
+                # Process prerequisites
+                if "prerequisites" in topic_data and topic_data["prerequisites"]:
+                    for prereq_id in topic_data["prerequisites"]:
+                        # Check if prerequisite exists
+                        try:
+                            prereq = Topic.objects.get(topic_id=prereq_id)
+                        except Topic.DoesNotExist:
+                            # Create the prerequisite topic
+                            prereq = Topic.objects.create(
+                                topic_id=prereq_id,
+                                title=prereq_id.replace('-', ' ').title(),  # Generate a title from the ID
+                                description="",
+                                project=project,
+                                status="not_learned"
+                            )
+                            created_topics.append(prereq)
+                        
+                        # Add the prerequisite relationship
+                        topic.prerequisites.add(prereq)
+            
+            # Create a CodeChange record to track this analysis
+            code_change = CodeChange.objects.create(
+                project=project,
+                change_source="git_commit",
+                summary=f"Analysis of changes in {repo_path}",
+                diff_content=diff_text,
+                is_analyzed=True
+            )
+            
+            # Add the extracted topics to the code change
+            for topic in created_topics + updated_topics:
+                code_change.extracted_topics.add(topic)
+            
+            # Return the result
+            return Response({
+                "message": "Diff analyzed successfully",
+                "topics_created": len(created_topics),
+                "topics_updated": len(updated_topics),
+                "topics": [
+                    {
+                        "topic_id": topic.topic_id,
+                        "title": topic.title,
+                        "status": topic.status,
+                        "is_new": topic in created_topics
+                    }
+                    for topic in created_topics + updated_topics
+                ]
+            })
         
-        # Create a CodeChange record to track this analysis
-        code_change = CodeChange.objects.create(
-            project=project,
-            change_source="git_commit",
-            summary=f"Analysis of changes in {repo_path}",
-            diff_content=diff_text,
-            is_analyzed=True
-        )
-        
-        # Add the extracted topics to the code change
-        for topic in created_topics + updated_topics:
-            code_change.extracted_topics.add(topic)
-        
-        # Return the result
-        return Response({
-            "message": "Diff analyzed successfully",
-            "topics_created": len(created_topics),
-            "topics_updated": len(updated_topics),
-            "topics": [
-                {
-                    "topic_id": topic.topic_id,
-                    "title": topic.title,
-                    "status": topic.status,
-                    "is_new": topic in created_topics
-                }
-                for topic in created_topics + updated_topics
-            ]
-        })
+        except Exception as e:
+            logger.error(f"Error analyzing diff for project {project_id}: {str(e)}")
+            return Response(
+                {"error": f"Failed to analyze diff: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 def home_view(request):
@@ -585,20 +678,31 @@ class MarkTopicAsLearnedView(APIView):
             Response with success message and updated status
         """
         try:
-            topic = Topic.objects.get(topic_id=topic_id)
-        except Topic.DoesNotExist:
+            logger.info(f"Marking topic {topic_id} as learned via API view")
+            try:
+                topic = Topic.objects.get(topic_id=topic_id)
+                logger.info(f"Found topic: {topic.title}")
+            except Topic.DoesNotExist:
+                logger.error(f"Topic with ID {topic_id} not found")
+                return Response(
+                    {"error": f"Topic with ID {topic_id} not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Update the topic status
+            topic.status = 'learned'
+            topic.save()
+            logger.info(f"Topic {topic_id} marked as learned successfully")
+            
+            # Return success response
+            return Response({
+                "message": f"Topic '{topic.title}' marked as learned",
+                "topic_id": topic.topic_id,
+                "status": topic.status
+            })
+        except Exception as e:
+            logger.error(f"Error marking topic {topic_id} as learned: {str(e)}")
             return Response(
-                {"error": f"Topic with ID {topic_id} not found"}, 
-                status=status.HTTP_404_NOT_FOUND
+                {"error": f"Failed to mark topic as learned: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        # Update the topic status
-        topic.status = 'learned'
-        topic.save()
-        
-        # Return success response
-        return Response({
-            "message": f"Topic '{topic.title}' marked as learned",
-            "topic_id": topic.topic_id,
-            "status": topic.status
-        })

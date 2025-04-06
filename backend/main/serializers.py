@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Topic, TopicDependency, Project, CodeChange
+import uuid
 
 class ProjectSerializer(serializers.ModelSerializer):
     """
@@ -8,7 +9,12 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = '__all__'
-        read_only_fields = ('created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at', 'project_id')
+
+    def create(self, validated_data):
+        # Generate a unique project_id using UUID
+        validated_data['project_id'] = str(uuid.uuid4())[:8]  # Use first 8 characters of UUID
+        return super().create(validated_data)
 
 
 class TopicSerializer(serializers.ModelSerializer):

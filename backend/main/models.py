@@ -6,7 +6,7 @@ class Project(models.Model):
     """
     Represents a coding project that contains topics to learn
     """
-    project_id = models.CharField(max_length=100, unique=True)
+    project_id = models.CharField(max_length=100, unique=True, db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     # Metadata for the project (e.g., repository path, settings)
@@ -20,6 +20,9 @@ class Project(models.Model):
     class Meta:
         verbose_name = "Project"
         verbose_name_plural = "Projects"
+        indexes = [
+            models.Index(fields=['project_id']),
+        ]
 
 
 class Topic(models.Model):
@@ -32,7 +35,7 @@ class Topic(models.Model):
         ('learned', 'Learned'),
     )
     
-    topic_id = models.CharField(max_length=255, unique=True)
+    topic_id = models.CharField(max_length=255, unique=True, db_index=True)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='not_learned')
@@ -49,6 +52,10 @@ class Topic(models.Model):
     class Meta:
         verbose_name = "Topic"
         verbose_name_plural = "Topics"
+        indexes = [
+            models.Index(fields=['topic_id']),
+            models.Index(fields=['status']),
+        ]
 
 
 class CodeChange(models.Model):
