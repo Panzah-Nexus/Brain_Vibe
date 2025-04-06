@@ -15,6 +15,7 @@
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
     "clean": "node scripts/clean.js",
+    "deep-clean": "node scripts/clean.js --deep",
     "prepare": "node scripts/prepare.js",
     "install-global": "node scripts/install.js",
     "uninstall-global": "node scripts/uninstall.js",
@@ -30,11 +31,11 @@
   "author": "BrainVibe",
   "license": "MIT",
   "dependencies": {
-    "chokidar": "^3.5.3",
+    "chokidar": "^3.6.0",
     "commander": "^11.1.0",
-    "inquirer": "^9.2.12",
+    "inquirer": "^8.2.4",
     "node-fetch": "^2.7.0",
-    "simple-git": "^3.22.0"
+    "simple-git": "^3.27.0"
   },
   "devDependencies": {
     "@types/chokidar": "^2.1.7",
@@ -42,6 +43,7 @@
     "@types/inquirer": "^9.0.7",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.30",
+    "@types/node-fetch": "^2.6.12",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "eslint": "^8.57.0",
