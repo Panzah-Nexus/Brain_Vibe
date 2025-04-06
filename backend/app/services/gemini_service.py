@@ -43,6 +43,10 @@ def analyze_code_diff(git_diff: str, prompt: Optional[str] = None, ai_output: Op
     {git_diff}
     ```
     
+    Even though you might not see changes to node_modules or package.json in the diff (they may have been filtered out),
+    if you detect that the project involves npm, Node.js or similar JavaScript package management,
+    include them as relevant topics for learning.
+    
     Return a JSON structure with the following format:
     
     {{
@@ -60,6 +64,8 @@ def analyze_code_diff(git_diff: str, prompt: Optional[str] = None, ai_output: Op
     1. Make sure to generate a unique topic_id for each topic (use snake_case).
     2. Prerequisites should be other topic_ids. If they're new, include them as separate topics.
     3. Include no commentary or explanations outside the JSON structure.
+    4. Consider both the code itself and the project structure when identifying topics.
+    5. Evaluate both the user-specific coding topics and the underlying technologies/frameworks.
     """
     
     try:
