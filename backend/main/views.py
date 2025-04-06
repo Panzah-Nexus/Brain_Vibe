@@ -14,7 +14,10 @@ from . import services
 from code_tracker import cursor_integration
 from code_tracker.utils import git_utils
 from .utils import llm_utils
+from .utils.llm_utils import analyze_diff, extract_topics_from_diff
 import logging
+import uuid
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -347,12 +350,12 @@ class CodeAnalysisView(APIView):
 
 class AnalyzeDiffView(APIView):
     """
-    API view for analyzing diffs and updating topics in the database.
-    
-    This endpoint analyzes code changes from a diff, extracts topics, and updates
-    the database with new topics and their prerequisites.
+    API view for analyzing code diffs for a specific project.
+    This endpoint accepts either:
+    1. A repository path to extract diffs locally
+    2. A diff content directly from the CLI tool
     """
-    permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
+    permission_classes = [AllowAny]
     
     def post(self, request, project_id, format=None):
         """
@@ -379,121 +382,93 @@ class AnalyzeDiffView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Get the repo path from the request body
+            # Check if diff_content is provided directly (from CLI)
+            diff_text = request.data.get('diff_content')
             repo_path = request.data.get('repo_path')
-            if not repo_path:
-                logger.error("Missing repo_path parameter")
+            change_id = request.data.get('change_id', str(uuid.uuid4())[:8])
+            
+            if not diff_text and not repo_path:
+                logger.error("Either diff_content or repo_path parameter is required")
                 return Response(
-                    {"error": "repo_path parameter is required"}, 
+                    {"error": "Either diff_content or repo_path parameter is required"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Get the diff from git_utils
-            diff_text = git_utils.get_repo_diffs(repo_path)
+            # If no diff_content provided but repo_path is, get diffs from the repo
+            if not diff_text and repo_path:
+                logger.info(f"Getting diffs from repository: {repo_path}")
+                diff_text = git_utils.get_repo_diffs(repo_path)
+                
             if not diff_text:
-                logger.info(f"No changes found in repository: {repo_path}")
+                logger.info(f"No changes found to analyze")
                 return Response(
-                    {"warning": "No changes found in repository"}, 
+                    {"warning": "No changes found to analyze"}, 
                     status=status.HTTP_200_OK
                 )
             
-            # Prepare project context
-            project_context = {
-                "project_id": project.project_id,
-                "name": project.name,
-                "existing_topics": list(Topic.objects.filter(project=project).values('topic_id', 'title', 'status'))
-            }
-            
-            # Pass the diff to llm_utils to extract topics
-            new_topics = llm_utils.analyze_diff(diff_text, project_context)
-            if not new_topics:
-                return Response(
-                    {"message": "No new topics extracted from the diff"}, 
-                    status=status.HTTP_200_OK
-                )
-            
-            # Process and store the topics in the database
-            created_topics = []
-            updated_topics = []
-            
-            for topic_data in new_topics:
-                topic_id = topic_data.get("topic_id")
-                if not topic_id:
-                    continue
-                
-                # Check if the topic already exists
-                try:
-                    # Topic exists, update it if needed
-                    topic = Topic.objects.get(topic_id=topic_id)
-                    
-                    # Only update if the topic has changed
-                    if (topic.title != topic_data.get("title") or 
-                        topic.description != topic_data.get("description")):
-                        topic.title = topic_data.get("title", topic.title)
-                        topic.description = topic_data.get("description", topic.description)
-                        topic.save()
-                        updated_topics.append(topic)
-                    
-                except Topic.DoesNotExist:
-                    # Create a new topic
-                    topic = Topic.objects.create(
-                        topic_id=topic_id,
-                        title=topic_data.get("title", ""),
-                        description=topic_data.get("description", ""),
-                        project=project,
-                        status="not_learned"
-                    )
-                    created_topics.append(topic)
-                
-                # Process prerequisites
-                if "prerequisites" in topic_data and topic_data["prerequisites"]:
-                    for prereq_id in topic_data["prerequisites"]:
-                        # Check if prerequisite exists
-                        try:
-                            prereq = Topic.objects.get(topic_id=prereq_id)
-                        except Topic.DoesNotExist:
-                            # Create the prerequisite topic
-                            prereq = Topic.objects.create(
-                                topic_id=prereq_id,
-                                title=prereq_id.replace('-', ' ').title(),  # Generate a title from the ID
-                                description="",
-                                project=project,
-                                status="not_learned"
-                            )
-                            created_topics.append(prereq)
-                        
-                        # Add the prerequisite relationship
-                        topic.prerequisites.add(prereq)
-            
-            # Create a CodeChange record to track this analysis
+            # Track the code change in the database
             code_change = CodeChange.objects.create(
                 project=project,
-                change_source="git_commit",
-                summary=f"Analysis of changes in {repo_path}",
+                change_source='cli' if 'diff_content' in request.data else 'web',
+                change_id=change_id,
                 diff_content=diff_text,
-                is_analyzed=True
+                metadata={
+                    'repo_path': repo_path,
+                    'timestamp': timezone.now().isoformat()
+                }
             )
             
-            # Add the extracted topics to the code change
-            for topic in created_topics + updated_topics:
-                code_change.extracted_topics.add(topic)
+            # Extract and save topics
+            topics_data = extract_topics_from_diff(diff_text, project)
             
-            # Return the result
+            # Save extracted topics and link to the code change
+            topics_created = []
+            for topic_data in topics_data:
+                try:
+                    # Check if the topic already exists
+                    topic_id = topic_data['topic_id']
+                    topic, created = Topic.objects.get_or_create(
+                        topic_id=topic_id,
+                        defaults={
+                            'title': topic_data['title'],
+                            'description': topic_data['description'],
+                            'project': project,
+                            'status': 'not_learned'
+                        }
+                    )
+                    
+                    # Link the topic to the code change
+                    code_change.extracted_topics.add(topic)
+                    
+                    # Only add to the topics_created list if it's a new topic
+                    if created:
+                        topics_created.append(topic_id)
+                        
+                        # Create prerequisite relationships
+                        for prereq_id in topic_data.get('prerequisites', []):
+                            try:
+                                prereq = Topic.objects.get(topic_id=prereq_id)
+                                topic.prerequisites.add(prereq)
+                            except Topic.DoesNotExist:
+                                logger.warning(f"Prerequisite topic {prereq_id} not found")
+                    
+                except Exception as e:
+                    logger.error(f"Error processing topic {topic_data.get('topic_id')}: {str(e)}")
+            
+            logger.info(f"Analysis complete. Created {len(topics_created)} new topics")
+            
             return Response({
-                "message": "Diff analyzed successfully",
-                "topics_created": len(created_topics),
-                "topics_updated": len(updated_topics),
-                "topics": [
-                    {
-                        "topic_id": topic.topic_id,
-                        "title": topic.title,
-                        "status": topic.status,
-                        "is_new": topic in created_topics
-                    }
-                    for topic in created_topics + updated_topics
+                'success': True,
+                'project_id': project_id,
+                'topics_created': topics_created,
+                'change_id': code_change.change_id,
+                'analysis_details': [
+                    f"Analyzed diff with {len(diff_text.splitlines())} lines",
+                    f"Created {len(topics_created)} new topics",
+                    f"The topics are now visible in your project"
                 ]
             })
-        
+            
         except Exception as e:
             logger.error(f"Error analyzing diff for project {project_id}: {str(e)}")
             return Response(

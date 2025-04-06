@@ -52,6 +52,71 @@ export async function initProject(options: InitOptions): Promise<void> {
     await git.init();
   }
 
+  // Create .brainvibeignore file if it doesn't exist
+  const ignoreFilePath = path.join(absolutePath, '.brainvibeignore');
+  if (!fs.existsSync(ignoreFilePath)) {
+    fs.writeFileSync(
+      ignoreFilePath,
+      `# BrainVibe Ignore File
+# Patterns listed here will be ignored by the BrainVibe tracking system
+# Format: One pattern per line, similar to .gitignore
+
+# Dependencies
+node_modules
+package-lock.json
+yarn.lock
+bower_components
+vendor
+.venv
+env
+venv
+pip-wheel-metadata
+
+# Build directories
+dist
+build
+out
+target
+
+# Cache directories
+.cache
+__pycache__
+
+# Documentation
+*.md
+*.txt
+LICENSE*
+README*
+
+# Configuration files
+.env*
+*.config.js
+tsconfig.json
+jest.config.js
+
+# IDE files
+.vscode
+.idea
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Binary files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+*.zip
+*.exe
+*.dll
+`
+    );
+    console.log('Created .brainvibeignore file');
+  }
+
   // Create git hooks directory
   const hooksDir = path.join(absolutePath, '.git', 'hooks');
   fs.mkdirSync(hooksDir, { recursive: true });

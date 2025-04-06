@@ -1,0 +1,2 @@
+[console_scripts]
+brainvibe = brainvibe.__main__:main

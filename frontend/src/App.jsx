@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import ProjectsList from './pages/ProjectsList';
 import ProjectDetails from './pages/ProjectDetails';
 import MasterBrainPage from './pages/MasterBrainPage';
+import CLIDocsPage from './pages/CLIDocsPage';
 import './App.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
             <Route path="/projects" element={<ProjectsList />} />
             <Route path="/projects/:projectId" element={<ProjectDetails />} />
             <Route path="/master-brain" element={<MasterBrainPage />} />
+            <Route path="/cli-docs" element={<CLIDocsPage />} />
             {/* Future routes will go here */}
           </Routes>
         </div>

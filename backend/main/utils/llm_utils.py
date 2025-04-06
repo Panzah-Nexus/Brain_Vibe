@@ -6,6 +6,7 @@ import json
 import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from ..models import Topic
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -215,3 +216,55 @@ def parse_gemini_response(response: Dict[str, Any]) -> List[Dict[str, Any]]:
             logger.exception(f"Error parsing mock response: {e}")
             
     return [] 
+
+def extract_topics_from_diff(diff_text, project):
+    """
+    Extract topics from a diff using the LLM.
+    
+    Args:
+        diff_text: The diff text to analyze
+        project: The project model object
+        
+    Returns:
+        List of topics extracted from the diff
+    """
+    # Prepare project context
+    project_context = {
+        "project_id": project.project_id,
+        "name": project.name,
+        "existing_topics": list(Topic.objects.filter(project=project).values('topic_id', 'title', 'status'))
+    }
+    
+    # Pass the diff to the LLM to extract topics
+    new_topics = analyze_diff(diff_text, project_context)
+    
+    # Process and enrich the topics
+    topics_data = []
+    for topic_data in new_topics:
+        # Make sure topic has required fields
+        if not topic_data.get("topic_id"):
+            continue
+            
+        # Create a standardized topic object
+        processed_topic = {
+            "topic_id": topic_data.get("topic_id"),
+            "title": topic_data.get("title", topic_data.get("topic_id").replace('-', ' ').title()),
+            "description": topic_data.get("description", ""),
+            "prerequisites": topic_data.get("prerequisites", []),
+        }
+        
+        topics_data.append(processed_topic)
+        
+        # Also add any missing prerequisites as topics
+        for prereq_id in processed_topic.get("prerequisites", []):
+            # Check if we already have this topic in our list
+            if not any(t.get("topic_id") == prereq_id for t in topics_data):
+                # Add a basic topic for this prerequisite
+                topics_data.append({
+                    "topic_id": prereq_id,
+                    "title": prereq_id.replace('-', ' ').title(),
+                    "description": "",
+                    "prerequisites": []
+                })
+    
+    return topics_data 

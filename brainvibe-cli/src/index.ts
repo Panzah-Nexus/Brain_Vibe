@@ -35,8 +35,14 @@ program
   .command('track')
   .description('Start tracking changes in your project')
   .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('-i, --interval <ms>', 'Commit interval in milliseconds', '120000')
+  .option('--ignore-file <file>', 'Custom ignore file (default: .brainvibeignore)')
   .action(async (options) => {
     try {
+      // Convert interval string to number
+      if (options.interval) {
+        options.interval = parseInt(options.interval, 10);
+      }
       await trackChanges(options);
     } catch (error) {
       if (error instanceof Error) {

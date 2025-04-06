@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiService from '../services/api';
+import GraphVisualization from '../components/GraphVisualization';
 
 const MasterBrainPage = () => {
   const [topics, setTopics] = useState([]);
@@ -55,6 +56,15 @@ const MasterBrainPage = () => {
         <h1>Master Brain</h1>
         <p>All learning topics across your projects</p>
       </header>
+      
+      <section className="graph-visualization-section">
+        <h2>Knowledge Graph Visualization</h2>
+        <GraphVisualization 
+          topics={topics}
+          onMarkAsLearned={handleMarkAsLearned}
+          height="600px"
+        />
+      </section>
       
       <div className="filters">
         <button 
@@ -141,15 +151,6 @@ const MasterBrainPage = () => {
             ))}
           </div>
         )}
-      </section>
-      
-      {/* Placeholder for future graph visualization */}
-      <section className="graph-visualization">
-        <h2>Knowledge Graph Visualization</h2>
-        <p>Interactive knowledge graph visualization will be implemented in future versions</p>
-        <div className="graph-placeholder">
-          {/* This will be replaced with an actual graph visualization */}
-        </div>
       </section>
     </div>
   );
