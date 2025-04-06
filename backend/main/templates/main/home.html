@@ -59,9 +59,35 @@
     <h2>Available Endpoints</h2>
     <div class="endpoints">
         <div class="endpoint">
-            <h3>API Endpoints</h3>
+            <h3>Project Endpoints</h3>
+            <ul>
+                <li><a href="/api/projects/">/api/projects/</a> - List and create projects</li>
+                <li><a href="/api/projects/stats/">/api/projects/stats/</a> - Project statistics</li>
+                <li><code>/api/projects/{id}/analyze_changes/</code> - Analyze repository changes</li>
+            </ul>
+        </div>
+        
+        <div class="endpoint">
+            <h3>Topic Endpoints</h3>
+            <ul>
+                <li><a href="/api/topics/">/api/topics/</a> - List and create topics</li>
+                <li><a href="/api/topics/{id}/mark_as_learned/">/api/topics/{id}/mark_as_learned/</a> - Mark a topic as learned</li>
+                <li><a href="/api/topics/{id}/prerequisites/">/api/topics/{id}/prerequisites/</a> - View topic prerequisites</li>
+            </ul>
+        </div>
+        
+        <div class="endpoint">
+            <h3>Analysis Endpoints</h3>
+            <ul>
+                <li><a href="/api/analysis/code/">/api/analysis/code/</a> - Analyze code changes (POST)</li>
+            </ul>
+        </div>
+        
+        <div class="endpoint">
+            <h3>Other API Endpoints</h3>
             <ul>
                 <li><a href="/api/hello/">/api/hello/</a> - Test endpoint</li>
+                <li><a href="/api/dependencies/">/api/dependencies/</a> - Topic dependencies (legacy)</li>
             </ul>
         </div>
         
