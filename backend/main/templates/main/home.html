@@ -71,8 +71,9 @@
             <h3>Topic Endpoints</h3>
             <ul>
                 <li><a href="/api/topics/">/api/topics/</a> - List and create topics</li>
-                <li><a href="/api/topics/{id}/mark_as_learned/">/api/topics/{id}/mark_as_learned/</a> - Mark a topic as learned</li>
+                <li><a href="/api/topics/{id}/mark_as_learned/">/api/topics/{id}/mark_as_learned/</a> - Mark a topic as learned (DRF action)</li>
                 <li><a href="/api/topics/{id}/prerequisites/">/api/topics/{id}/prerequisites/</a> - View topic prerequisites</li>
+                <li><a href="/api/topics/{id}/complete/">/api/topics/{id}/complete/</a> - Mark a topic as learned (dedicated endpoint)</li>
             </ul>
         </div>
         
@@ -80,6 +81,14 @@
             <h3>Analysis Endpoints</h3>
             <ul>
                 <li><a href="/api/analysis/code/">/api/analysis/code/</a> - Analyze code changes (POST)</li>
+                <li><a href="/api/projects/{id}/analyze-diff/">/api/projects/{id}/analyze-diff/</a> - Analyze Git diffs (POST)</li>
+            </ul>
+        </div>
+        
+        <div class="endpoint">
+            <h3>Master Brain</h3>
+            <ul>
+                <li><a href="/api/master-graph/">/api/master-graph/</a> - View the consolidated master graph of all topics</li>
             </ul>
         </div>
         
@@ -88,6 +97,7 @@
             <ul>
                 <li><a href="/api/hello/">/api/hello/</a> - Test endpoint</li>
                 <li><a href="/api/dependencies/">/api/dependencies/</a> - Topic dependencies (legacy)</li>
+                <li><a href="/api/changes/">/api/changes/</a> - Code changes history</li>
             </ul>
         </div>
         

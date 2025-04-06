@@ -12,6 +12,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from . import services
 from code_tracker import cursor_integration
+from code_tracker.utils import git_utils
+from .utils import llm_utils
 
 # Create your views here.
 class HelloWorldView(APIView):
@@ -239,32 +241,171 @@ class CodeAnalysisView(APIView):
     permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
     
     def post(self, request, format=None):
-        """
-        Analyze code changes provided in the request
+        code = request.data.get('code', '')
         
-        Request body:
-        - code_diff: The Git diff to analyze
-        - context: Optional context information
-        """
-        code_diff = request.data.get('code_diff')
-        context = request.data.get('context', {})
-        
-        if not code_diff:
+        if not code:
             return Response(
-                {"error": "code_diff parameter is required"}, 
+                {"error": "code parameter is required"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Import here to avoid circular imports
-        from .utils import llm_utils
-        
-        # Analyze the diff
-        topics = llm_utils.analyze_diff(code_diff, context)
+        # Placeholder for code analysis logic
+        # In the future, this will analyze the code and extract topics
+        # For now, return a dummy response
         
         return Response({
-            "message": "Code analysis completed",
-            "topics_extracted": len(topics),
-            "topics": topics
+            "message": "Code analyzed successfully",
+            "topics": [
+                {
+                    "topic_id": "example-topic",
+                    "title": "Example Topic",
+                    "description": "This is a placeholder for future implementation"
+                }
+            ]
+        })
+
+
+class AnalyzeDiffView(APIView):
+    """
+    API view for analyzing diffs and updating topics in the database.
+    
+    This endpoint analyzes code changes from a diff, extracts topics, and updates
+    the database with new topics and their prerequisites.
+    """
+    permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
+    
+    def post(self, request, project_id, format=None):
+        """
+        Analyze a diff for a specific project and update topics in the database.
+        
+        Args:
+            request: The HTTP request
+            project_id: The ID of the project
+            format: The format of the response
+            
+        Returns:
+            Response with the analysis results
+        """
+        # Get the project from the database
+        try:
+            project = Project.objects.get(project_id=project_id)
+        except Project.DoesNotExist:
+            return Response(
+                {"error": f"Project with ID {project_id} not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get the repo path from the request body
+        repo_path = request.data.get('repo_path')
+        if not repo_path:
+            return Response(
+                {"error": "repo_path parameter is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the diff from git_utils
+        diff_text = git_utils.get_repo_diffs(repo_path)
+        if not diff_text:
+            return Response(
+                {"warning": "No changes found in repository"}, 
+                status=status.HTTP_200_OK
+            )
+        
+        # Prepare project context
+        project_context = {
+            "project_id": project.project_id,
+            "name": project.name,
+            "existing_topics": list(Topic.objects.filter(project=project).values('topic_id', 'title', 'status'))
+        }
+        
+        # Pass the diff to llm_utils to extract topics
+        new_topics = llm_utils.analyze_diff(diff_text, project_context)
+        if not new_topics:
+            return Response(
+                {"message": "No new topics extracted from the diff"}, 
+                status=status.HTTP_200_OK
+            )
+        
+        # Process and store the topics in the database
+        created_topics = []
+        updated_topics = []
+        
+        for topic_data in new_topics:
+            topic_id = topic_data.get("topic_id")
+            if not topic_id:
+                continue
+            
+            # Check if the topic already exists
+            try:
+                # Topic exists, update it if needed
+                topic = Topic.objects.get(topic_id=topic_id)
+                
+                # Only update if the topic has changed
+                if (topic.title != topic_data.get("title") or 
+                    topic.description != topic_data.get("description")):
+                    topic.title = topic_data.get("title", topic.title)
+                    topic.description = topic_data.get("description", topic.description)
+                    topic.save()
+                    updated_topics.append(topic)
+                
+            except Topic.DoesNotExist:
+                # Create a new topic
+                topic = Topic.objects.create(
+                    topic_id=topic_id,
+                    title=topic_data.get("title", ""),
+                    description=topic_data.get("description", ""),
+                    project=project,
+                    status="not_learned"
+                )
+                created_topics.append(topic)
+            
+            # Process prerequisites
+            if "prerequisites" in topic_data and topic_data["prerequisites"]:
+                for prereq_id in topic_data["prerequisites"]:
+                    # Check if prerequisite exists
+                    try:
+                        prereq = Topic.objects.get(topic_id=prereq_id)
+                    except Topic.DoesNotExist:
+                        # Create the prerequisite topic
+                        prereq = Topic.objects.create(
+                            topic_id=prereq_id,
+                            title=prereq_id.replace('-', ' ').title(),  # Generate a title from the ID
+                            description="",
+                            project=project,
+                            status="not_learned"
+                        )
+                        created_topics.append(prereq)
+                    
+                    # Add the prerequisite relationship
+                    topic.prerequisites.add(prereq)
+        
+        # Create a CodeChange record to track this analysis
+        code_change = CodeChange.objects.create(
+            project=project,
+            change_source="git_commit",
+            summary=f"Analysis of changes in {repo_path}",
+            diff_content=diff_text,
+            is_analyzed=True
+        )
+        
+        # Add the extracted topics to the code change
+        for topic in created_topics + updated_topics:
+            code_change.extracted_topics.add(topic)
+        
+        # Return the result
+        return Response({
+            "message": "Diff analyzed successfully",
+            "topics_created": len(created_topics),
+            "topics_updated": len(updated_topics),
+            "topics": [
+                {
+                    "topic_id": topic.topic_id,
+                    "title": topic.title,
+                    "status": topic.status,
+                    "is_new": topic in created_topics
+                }
+                for topic in created_topics + updated_topics
+            ]
         })
 
 
@@ -357,3 +498,107 @@ class CodeChangeViewSet(viewsets.ModelViewSet):
             )
         
         return Response(result)
+
+
+class MasterGraphView(APIView):
+    """
+    API view for retrieving the master graph of all topics
+    
+    This endpoint provides access to the "Master Brain" - a consolidated view of all topics
+    across all projects, with duplicates grouped by topic_id.
+    
+    Future enhancements:
+    - Implement more sophisticated duplicate detection (beyond exact topic_id matches)
+    - Add relationship information between topics
+    - Provide filtering options (by status, project, etc.)
+    - Add hierarchy visualization data
+    """
+    permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
+    
+    def get(self, request, format=None):
+        """
+        Retrieve all topics from the system, grouped by topic_id to avoid duplication
+        
+        Returns:
+            A JSON response with the consolidated topics
+        """
+        # Get all topics from the database
+        all_topics = Topic.objects.all()
+        
+        # Group topics by topic_id (simple approach for now)
+        topic_groups = {}
+        for topic in all_topics:
+            if topic.topic_id not in topic_groups:
+                # First time seeing this topic_id
+                topic_groups[topic.topic_id] = {
+                    'topic_id': topic.topic_id,
+                    'title': topic.title,
+                    'description': topic.description,
+                    'status': topic.status,
+                    'projects': [topic.project.project_id] if topic.project else [],
+                    'prerequisites': [prereq.topic_id for prereq in topic.prerequisites.all()],
+                    'dependent_topics': [dep.topic_id for dep in topic.dependent_on.all()],
+                    'created_at': topic.created_at,
+                    'updated_at': topic.updated_at
+                }
+            else:
+                # Topic with this ID already exists, merge project information
+                if topic.project and topic.project.project_id not in topic_groups[topic.topic_id]['projects']:
+                    topic_groups[topic.topic_id]['projects'].append(topic.project.project_id)
+                
+                # Use most recent status (learned > in_progress > not_learned)
+                if (topic.status == 'learned' or 
+                    (topic.status == 'in_progress' and topic_groups[topic.topic_id]['status'] == 'not_learned')):
+                    topic_groups[topic.topic_id]['status'] = topic.status
+                
+                # Use the most recent updated_at
+                if topic.updated_at > topic_groups[topic.topic_id]['updated_at']:
+                    topic_groups[topic.topic_id]['updated_at'] = topic.updated_at
+                
+                # TODO: More sophisticated merging logic for future implementation
+        
+        # Convert the dictionary to a list
+        consolidated_topics = list(topic_groups.values())
+        
+        return Response({
+            'total_topics': len(consolidated_topics),
+            'topics': consolidated_topics
+        })
+
+
+class MarkTopicAsLearnedView(APIView):
+    """
+    API view for marking a topic as learned.
+    """
+    permission_classes = [AllowAny]  # For development, change to IsAuthenticated in production
+    
+    def post(self, request, topic_id, format=None):
+        """
+        Mark a topic as learned.
+        
+        Args:
+            request: The HTTP request
+            topic_id: The ID of the topic to mark as learned
+            format: The format of the response
+            
+        Returns:
+            Response with success message and updated status
+        """
+        try:
+            topic = Topic.objects.get(topic_id=topic_id)
+        except Topic.DoesNotExist:
+            return Response(
+                {"error": f"Topic with ID {topic_id} not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update the topic status
+        topic.status = 'learned'
+        topic.save()
+        
+        # Return success response
+        return Response({
+            "message": f"Topic '{topic.title}' marked as learned",
+            "topic_id": topic.topic_id,
+            "status": topic.status
+        })

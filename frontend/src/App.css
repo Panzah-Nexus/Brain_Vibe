@@ -1,0 +1,253 @@
+/* Base styles */
+:root {
+  --primary: #2a5298;
+  --primary-light: #4270b5;
+  --secondary: #34a852;
+  --accent: #ea4335;
+  --light: #f8f9fa;
+  --dark: #333;
+  --gray: #6c757d;
+  --border: #dee2e6;
+  --success: #28a745;
+  --warning: #ffc107;
+  --danger: #dc3545;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--dark);
+  background-color: var(--light);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content {
+  flex: 1;
+  padding: 20px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: var(--primary-light);
+}
+
+button:disabled {
+  background-color: var(--gray);
+  cursor: not-allowed;
+}
+
+button.active {
+  background-color: var(--primary-light);
+}
+
+input {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.error {
+  color: var(--danger);
+  padding: 1rem;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+/* Navbar styles */
+.navbar {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar-logo a {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.navbar-links {
+  display: flex;
+  list-style: none;
+}
+
+.navbar-links li {
+  margin-left: 1.5rem;
+}
+
+.navbar-links li.disabled span {
+  color: var(--gray);
+  cursor: not-allowed;
+}
+
+/* Card styles */
+.project-card, .topic-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-left: 4px solid var(--primary);
+}
+
+.projects-grid, .topics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Topic card status styles */
+.topic-card.not_learned {
+  border-left-color: var(--danger);
+}
+
+.topic-card.in_progress {
+  border-left-color: var(--warning);
+}
+
+.topic-card.learned {
+  border-left-color: var(--success);
+}
+
+.topic-status span {
+  font-weight: bold;
+}
+
+.topic-card.not_learned .topic-status span {
+  color: var(--danger);
+}
+
+.topic-card.in_progress .topic-status span {
+  color: var(--warning);
+}
+
+.topic-card.learned .topic-status span {
+  color: var(--success);
+}
+
+/* Form styles */
+.analyze-section form {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+
+.analyze-section input {
+  flex: 1;
+}
+
+/* Master Brain page styles */
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.topic-meta {
+  display: flex;
+  justify-content: space-between;
+  margin: 1rem 0;
+}
+
+.topic-relationships {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.mark-learned-btn {
+  background-color: var(--success);
+  margin-top: 1rem;
+}
+
+.mark-learned-btn:hover {
+  background-color: #218838;
+}
+
+/* Graph placeholders */
+.graph-placeholder {
+  height: 300px;
+  background-color: #f1f1f1;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--gray);
+  margin-top: 1rem;
+}
+
+/* Footer */
+.app-footer {
+  text-align: center;
+  padding: 1.5rem;
+  background-color: white;
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+  color: var(--gray);
+}
+
+/* Sections */
+section {
+  margin-bottom: 2rem;
+}
+
+header {
+  margin-bottom: 2rem;
+}
+
+header p {
+  color: var(--gray);
+}
