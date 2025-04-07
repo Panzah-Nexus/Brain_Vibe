@@ -15,7 +15,7 @@ The value proposition: People can quickly generate code with AI, yet keep track 
 ### Core Components
 #### Integration with Code Generation / Editing Tools
 
-The system should capture user prompts and AI responses. Ideally, it ties into a version control layer (e.g., Git). After each generated chunk of code, the system detects “what changed” in the codebase. The system must parse or store these changes (diffs) in a structured manner.
+The system should capture user prompts and AI responses. Currently, it works using our CLI tool which is based around a "shadow GIT", setting up local tracking through utilisation of a "project-id" on our user frontend when the user creates a new project. After each generated chunk of code, the system detects “what changed” in the codebase through Git diffs. The system then prepares these Git diffs for parsing.
 
 #### Topic Extraction & Dependency Analysis
 
@@ -27,7 +27,7 @@ Once code changes are captured, we send relevant context (code diffs, the entire
 
 #### Graph Storage
 
-Each project has its own knowledge graph. The graph’s data structure is expected to be a DAG, though cycles are unlikely.
+Each project has its own knowledge graph, built up of topic nodes. The graph’s data structure is expected to be a DAG, though cycles are unlikely.
 
 A topic node includes:
 
