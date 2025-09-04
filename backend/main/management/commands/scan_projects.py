@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from main.models import Project
-from code_tracker.scheduler import scanner
+# Scanner functionality removed - this command needs to be updated
 import logging
 
 logger = logging.getLogger(__name__)

@@ -60,8 +60,9 @@ class GeminiTopicAnalyzer:
         # Initialize the Gemini client
         genai.configure(api_key=self.api_key)
         
-        # Get the model
-        self.model = genai.GenerativeModel('gemini-pro')
+        # Get the model - using latest stable version
+        # Options: 'gemini-1.5-flash' (fast), 'gemini-1.5-pro' (advanced), 'gemini-2.0-flash' (experimental)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
     
     @retry.Retry(predicate=retry.if_transient_error)
     def analyze_diff(self, 

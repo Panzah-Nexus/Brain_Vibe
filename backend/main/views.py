@@ -11,8 +11,8 @@ from .serializers import (
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from . import services
-from code_tracker import cursor_integration
-from code_tracker.utils import git_utils
+from .utils.cursor_integration import process_cursor_change, compute_diff
+from .utils import git_utils
 from .utils import llm_utils
 from .utils.llm_utils import analyze_diff, extract_topics_from_diff
 import logging
@@ -554,7 +554,7 @@ class CodeChangeViewSet(viewsets.ModelViewSet):
             )
         else:
             # For other sources, compute the diff and analyze it
-            from code_tracker.cursor_integration import compute_diff
+            # compute_diff is already imported above
             diff_content = compute_diff(original_content, new_content)
             
             # Import the services module
