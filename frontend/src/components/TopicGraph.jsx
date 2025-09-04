@@ -27,17 +27,38 @@ const TopicGraph = ({
 
   useEffect(() => {
     if (cyRef.current) {
-      // Apply double-click handler
+      // Apply tap handler
       cyRef.current.on('tap', 'node', (event) => {
         const node = event.target;
         onNodeClick(node.data());
       });
+      
+      // Add hover event handlers
+      cyRef.current.on('mouseover', 'node', (event) => {
+        event.target.addClass('hover');
+      });
+      
+      cyRef.current.on('mouseout', 'node', (event) => {
+        event.target.removeClass('hover');
+      });
     }
+    
+    // Cleanup function to remove event listeners
+    return () => {
+      if (cyRef.current) {
+        cyRef.current.removeListener('tap');
+        cyRef.current.removeListener('mouseover');
+        cyRef.current.removeListener('mouseout');
+      }
+    };
   }, [onNodeClick]);
 
   // Convert topics to Cytoscape elements
   const elements = useMemo(() => {
-    if (!topics || topics.length === 0) return { nodes: [], edges: [] };
+    // Make sure topics is an array and not empty
+    if (!topics || !Array.isArray(topics) || topics.length === 0) {
+      return []; // Return an empty array instead of {nodes: [], edges: []}
+    }
 
     // Create nodes
     const nodes = topics.map(topic => ({
@@ -146,9 +167,9 @@ const TopicGraph = ({
         'arrow-scale': 1
       }
     },
-    // Hover styles
+    // Hover styles - fix the invalid selector
     {
-      selector: 'node:hover',
+      selector: 'node:selected, node.hover',
       style: {
         'background-color': '#e0e0e0',
         'border-width': '3px',
@@ -166,17 +187,31 @@ const TopicGraph = ({
       borderRadius: '8px',
       overflow: 'hidden'
     }}>
-      <CytoscapeComponent
-        cy={(cy) => { cyRef.current = cy; }}
-        elements={elements}
-        layout={layoutConfig[layout]}
-        stylesheet={stylesheet}
-        style={{ width: '100%', height: '100%' }}
-        boxSelectionEnabled={false}
-        autounselectify={false}
-        userZoomingEnabled={true}
-        userPanningEnabled={true}
-      />
+      {elements.length === 0 ? (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100%',
+          color: '#666',
+          flexDirection: 'column'
+        }}>
+          <p>No topics available for this project yet.</p>
+          <p>Analyze a repository to create topics.</p>
+        </div>
+      ) : (
+        <CytoscapeComponent
+          cy={(cy) => { cyRef.current = cy; }}
+          elements={elements}
+          layout={layoutConfig[layout]}
+          stylesheet={stylesheet}
+          style={{ width: '100%', height: '100%' }}
+          boxSelectionEnabled={false}
+          autounselectify={false}
+          userZoomingEnabled={true}
+          userPanningEnabled={true}
+        />
+      )}
     </div>
   );
 };
