@@ -1,5 +1,4 @@
-Verbose Project Description
-Below is a comprehensive system breakdown. Think of this as a “Technical Product Spec” you could hand off to a software engineer. It contains both an overview of the conceptual workflows and explicit requirements for each subsystem.
+
 
 Overview
 The project is a platform that:
